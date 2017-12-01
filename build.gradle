@@ -19,6 +19,23 @@ def dryRun = hasProperty("dryRun") ? property("dryRun") : "false"
 def authToken = hasProperty("authToken") ? property("authToken") : ""
 def deployTag = hasProperty("deployTag") ? property("deployTag") : "dev"
 
+
+apply plugin: 'com.moowork.node'
+
+node {
+    download = true
+    workDir = file("${rootProject.buildDir}/nodejs")
+}
+
+task installNpmPackages(type: NpmTask) {
+    args = ['install', 'registry-mock', 'hyperquest', 'concat-stream']
+}
+
+task launchMockNpmRegistry(type: NodeTask, dependsOn: [installNpmPackages]) {
+    script = file('npm-mock.js')
+}
+
+
 subprojects.stream().filter { it.parent != rootProject }.each { p ->
     configure(p) {
         apply plugin: 'kotlin2js'
