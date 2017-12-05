@@ -1,6 +1,8 @@
 import groovy.json.JsonException
 import groovy.json.JsonSlurper
 
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.Executors
 
 buildscript {
@@ -110,20 +112,6 @@ subprojects.stream().filter { it.parent != rootProject }.each { p ->
             into deployDir
         }
 
-//        task launchMockNpmRegistry(dependsOn: [installNpmPackages]) {
-//            doLast {
-//                Executors.callable {
-//
-//                }
-//            }
-//        }
-
-//        task copyNpmRc(type: Copy) {
-//            println "${rootProject.projectDir}/.npmrc"
-//            from "${rootProject.projectDir}/.npmrc"
-//            into deployDir
-//        }
-
         task publishToNpm(type: NpmTask, dependsOn: [copyTemplate, copySources]) {
             workingDir = file(deployDir)
 
@@ -133,12 +121,11 @@ subprojects.stream().filter { it.parent != rootProject }.each { p ->
                               "--tag=${deployTag}"]
 
             if (dryRun == "true") {
-//                dependsOn launchMockNpmRegistry
-                deployArgs += ['--reg=http://localhost:3676']/*,
-                               '--//localhost:3676/:_password=garbage!!password',
-                               '--//localhost:3676/:username=garbage!!user',
-                               '--//localhost:3676/:email=anyvalid@email.com',
-                               '--//localhost:3676/:always-auth=false']*/
+                deployArgs += ['--reg=http://localhost:3676',
+                               '--//localhost:3676/:_password=mock!!password',
+                               '--//localhost:3676/:username=mock!!user',
+                               '--//localhost:3676/:email=mock@email.com',
+                               '--//localhost:3676/:always-auth=false']
 
                 doFirst {
                     // Run during execution, not configuration
@@ -146,20 +133,74 @@ subprojects.stream().filter { it.parent != rootProject }.each { p ->
                     def executor = Executors.newSingleThreadExecutor()
 
                     def launchNpm = Executors.callable {
-                        project.exec {
-                            workingDir = rootProject.projectDir
-                            commandLine = ["${node.variant.nodeBinDir}/node", 'npm-mock.js']
-                            println commandLine
+
+                        def serverSocket = new ServerSocket(3676)
+
+                        def s = serverSocket.accept()
+
+                        def webServerAddress = s.getInetAddress().toString()
+
+                        println("New Connection:" + webServerAddress);
+                        def sin = new BufferedReader(new InputStreamReader(s.getInputStream()));
+
+                        def request = sin.readLine()
+                        println("--- Client request: " + request)
+                        def url = request.substring(4, request.substring(4).indexOf(' '))
+
+                        println "URL: " + url
+
+                        def contentLength = 0
+
+                        while (request != "") {
+                            request = sin.readLine()
+                            println("--- Client request: " + request)
+                            def coLeS = "content-length: "
+                            if (request.toLowerCase().startsWith(coLeS)) {
+                                contentLength = Integer.parseInt(request.substring(coLeS.length()).trim())
+                            }
                         }
+
+                        def jsonBuffer = new char[contentLength]
+
+                        println "About to read ${contentLength} bytes"
+
+                        sin.read(jsonBuffer)
+
+                        def json = new String(jsonBuffer)
+
+                        println "JSON: " + json
+
+                        def data = new JsonSlurper().parseText(json)
+
+                        def name = "${data.name}-${validate.deployVersion}.tgz"
+
+                        def tgz = data._attachments[name].data as String
+
+                        println "TGZ " + tgz
+
+                        def decodedTgz = Base64.decoder.decode(tgz)
+
+                        println "Len = " + decodedTgz.length
+
+                        Files.write(Paths.get("${deployDir}/name.tgz"), decodedTgz)
+
+                        def sout = new PrintWriter(s.getOutputStream(), true)
+
+                        sout.println("HTTP/1.0 201");
+                        sout.println("Content-type: application/json");
+                        sout.println("Server-name: myserver");
+                        String response = "{ \"message\": \"Cached data for: $url\" }";
+                        sout.println("Content-length: " + response.length())
+                        sout.println("")
+                        sout.println(response)
+                        sout.flush()
+                        sout.close()
+                        s.close()
+                        serverSocket.close()
+
                     }
 
                     executor.submit(launchNpm)
-                    file("${deployDir}/.npmrc").text = """
-//localhost:3676/:_password=garbage!!password
-//localhost:3676/:username=garbage!!user
-//localhost:3676/:email=anyvalid@email.com
-//localhost:3676/:always-auth=false
-"""
                 }
                 args = deployArgs//['pack']
             } else {
