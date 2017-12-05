@@ -1,0 +1,69 @@
+{
+    ":": {
+        "conventions": {
+            
+        },
+        "configurations": [
+            
+        ],
+        "extensions": {
+            "ext": "org.gradle.api.plugins.ExtraPropertiesExtension",
+            "node": "com.moowork.gradle.node.NodeExtension"
+        }
+    },
+    ":jquery": {
+        "conventions": {
+            
+        },
+        "configurations": [
+            
+        ],
+        "extensions": {
+            "ext": "org.gradle.api.plugins.ExtraPropertiesExtension"
+        }
+    },
+    ":react": {
+        "conventions": {
+            
+        },
+        "configurations": [
+            
+        ],
+        "extensions": {
+            "ext": "org.gradle.api.plugins.ExtraPropertiesExtension"
+        }
+    },
+    ":jquery:v1": {
+        "conventions": {
+            
+        },
+        "configurations": [
+            
+        ],
+        "extensions": {
+            "ext": "org.gradle.api.plugins.ExtraPropertiesExtension"
+        }
+    },
+    ":jquery:v2": {
+        "conventions": {
+            
+        },
+        "configurations": [
+            
+        ],
+        "extensions": {
+            "ext": "org.gradle.api.plugins.ExtraPropertiesExtension"
+        }
+    },
+    ":react:15": {
+        "conventions": {
+            
+        },
+        "configurations": [
+            
+        ],
+        "extensions": {
+            "ext": "org.gradle.api.plugins.ExtraPropertiesExtension"
+        }
+    }
+}
