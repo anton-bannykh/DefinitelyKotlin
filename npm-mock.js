@@ -7,6 +7,8 @@ var fs = require('fs');
 
 var port = process.env.PORT || 3676;
 
+console.log('npm-mock is starting');
+
 registryMock({ http: port }, function (err, registry) {
   if (err) { throw err; }
 
@@ -24,6 +26,8 @@ registryMock({ http: port }, function (err, registry) {
       }
     }).pipe(concat({ encoding: 'string' }, function (data) {
       console.log('%s %s', req.method, req.url);
+
+      console.log(data);
 
       fs.writeFile('data.json', data, function(err) {
         if (err) {

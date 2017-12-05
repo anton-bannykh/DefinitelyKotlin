@@ -1,6 +1,8 @@
 import groovy.json.JsonException
 import groovy.json.JsonSlurper
 
+import java.util.concurrent.Executors
+
 buildscript {
     ext.kotlin_version = '1.2.0'
 
@@ -31,10 +33,12 @@ task installNpmPackages(type: NpmTask) {
     args = ['install', 'registry-mock', 'hyperquest', 'concat-stream']
 }
 
-task launchMockNpmRegistry(type: NodeTask, dependsOn: [installNpmPackages]) {
-    script = file('npm-mock.js')
-}
 
+task dummyTask {
+    doLast {
+        println node.variant.npmBinDir
+    }
+}
 
 subprojects.stream().filter { it.parent != rootProject }.each { p ->
     configure(p) {
@@ -106,6 +110,20 @@ subprojects.stream().filter { it.parent != rootProject }.each { p ->
             into deployDir
         }
 
+//        task launchMockNpmRegistry(dependsOn: [installNpmPackages]) {
+//            doLast {
+//                Executors.callable {
+//
+//                }
+//            }
+//        }
+
+//        task copyNpmRc(type: Copy) {
+//            println "${rootProject.projectDir}/.npmrc"
+//            from "${rootProject.projectDir}/.npmrc"
+//            into deployDir
+//        }
+
         task publishToNpm(type: NpmTask, dependsOn: [copyTemplate, copySources]) {
             workingDir = file(deployDir)
 
@@ -115,11 +133,35 @@ subprojects.stream().filter { it.parent != rootProject }.each { p ->
                               "--tag=${deployTag}"]
 
             if (dryRun == "true") {
+//                dependsOn launchMockNpmRegistry
+                deployArgs += ['--reg=http://localhost:3676']/*,
+                               '--//localhost:3676/:_password=garbage!!password',
+                               '--//localhost:3676/:username=garbage!!user',
+                               '--//localhost:3676/:email=anyvalid@email.com',
+                               '--//localhost:3676/:always-auth=false']*/
+
                 doFirst {
                     // Run during execution, not configuration
-                    println("${deployDir} \$ npm arguments: ${deployArgs.join(" ")}");
+                    println("${deployDir} \$ npm arguments: ${deployArgs.join(" ")}")
+                    def executor = Executors.newSingleThreadExecutor()
+
+                    def launchNpm = Executors.callable {
+                        project.exec {
+                            workingDir = rootProject.projectDir
+                            commandLine = ["${node.variant.nodeBinDir}/node", 'npm-mock.js']
+                            println commandLine
+                        }
+                    }
+
+                    executor.submit(launchNpm)
+                    file("${deployDir}/.npmrc").text = """
+//localhost:3676/:_password=garbage!!password
+//localhost:3676/:username=garbage!!user
+//localhost:3676/:email=anyvalid@email.com
+//localhost:3676/:always-auth=false
+"""
                 }
-                args = ['pack']
+                args = deployArgs//['pack']
             } else {
                 args = deployArgs
             }
